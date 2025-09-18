@@ -75,8 +75,8 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        # Clone the template repository
-        git clone https://github.com/vanman2024/multi-agent-claude-code.git template-repo
+        # Clone the template repository with authentication
+        git clone https://x-access-token:$GITHUB_TOKEN@github.com/vanman2024/multi-agent-claude-code.git template-repo
         cd template-repo
         
         # Configure git
