@@ -70,3 +70,64 @@ jobs:
         # Run semantic-release
         npx semantic-release
 
+    - name: Deploy to template repository
+      if: success()
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        # Clone the template repository
+        git clone https://github.com/vanman2024/multi-agent-claude-code.git template-repo
+        cd template-repo
+        
+        # Configure git
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        
+        # Create a new branch for this deployment
+        BRANCH_NAME="auto-deploy/agentswarm-$(date +%Y%m%d-%H%M%S)"
+        git checkout -b $BRANCH_NAME
+        
+        # Copy AgentSwarm components to template repo
+        rm -rf agents core workflows cli lib config agentswarm install.sh requirements.txt pytest.ini 2>/dev/null || true
+        cp -r ../agents . 2>/dev/null || true
+        cp -r ../core . 2>/dev/null || true
+        cp -r ../workflows . 2>/dev/null || true
+        cp -r ../cli . 2>/dev/null || true
+        cp -r ../lib . 2>/dev/null || true
+        cp -r ../config . 2>/dev/null || true
+        cp ../agentswarm . 2>/dev/null || true
+        cp ../install.sh . 2>/dev/null || true
+        cp ../requirements.txt . 2>/dev/null || true
+        cp ../pytest.ini . 2>/dev/null || true
+        cp ../VERSION agentswarm-VERSION 2>/dev/null || true
+        
+        # Check if there are any changes
+        if git diff --quiet && git diff --cached --quiet; then
+          echo "No changes to deploy"
+          exit 0
+        fi
+        
+        # Commit and push changes
+        git add -A
+        git commit -m "feat: Auto-deploy AgentSwarm components $(cat ../VERSION | jq -r .version)
+
+        Auto-deployment from vanman2024/agentswarm
+        Commit: $GITHUB_SHA
+        Build date: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+        
+        git push origin $BRANCH_NAME
+        
+        # Create pull request using GitHub CLI
+        gh pr create \
+          --title "Auto-deploy AgentSwarm $(cat ../VERSION | jq -r .version)" \
+          --body "Automated deployment of AgentSwarm components from vanman2024/agentswarm
+        
+        ## Changes
+        - Updated AgentSwarm orchestration system
+        - Version: $(cat ../VERSION | jq -r .version)
+        - Source commit: $GITHUB_SHA
+        
+        This PR was automatically created by the AgentSwarm repository's semantic versioning workflow." \
+          --base main \
+          --head $BRANCH_NAME
+
