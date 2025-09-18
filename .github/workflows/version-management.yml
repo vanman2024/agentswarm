@@ -73,7 +73,7 @@ jobs:
     - name: Deploy to template repository
       if: success()
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.PAT_TOKEN || secrets.PERSONAL_ACCESS_TOKEN || secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
       run: |
         # Clone the template repository with authentication
         git clone https://x-access-token:$GITHUB_TOKEN@github.com/vanman2024/multi-agent-claude-code.git template-repo
