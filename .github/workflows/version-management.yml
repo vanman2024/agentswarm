@@ -88,7 +88,7 @@ jobs:
         git checkout -b $BRANCH_NAME
         
         # Copy AgentSwarm components to template repo (maintain agentswarm/ folder structure)
-        rm -rf agentswarm/ 2>/dev/null || true
+        rm -rf agentswarm agentswarm/ 2>/dev/null || true
         mkdir -p agentswarm/
         
         # Copy production code to agentswarm/ directory (no tests)
