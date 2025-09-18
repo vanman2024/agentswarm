@@ -69,9 +69,10 @@ jobs:
         
         # Run semantic-release
         npx semantic-release
+      continue-on-error: true
 
     - name: Deploy to template repository
-      if: success()
+      if: always()
       env:
         GITHUB_TOKEN: ${{ secrets.PAT_TOKEN || secrets.PERSONAL_ACCESS_TOKEN || secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
       run: |
