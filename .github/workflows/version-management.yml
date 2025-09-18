@@ -87,19 +87,27 @@ jobs:
         BRANCH_NAME="auto-deploy/agentswarm-$(date +%Y%m%d-%H%M%S)"
         git checkout -b $BRANCH_NAME
         
-        # Copy AgentSwarm components to template repo
-        rm -rf agents core workflows cli lib config agentswarm install.sh requirements.txt pytest.ini 2>/dev/null || true
-        cp -r ../agents . 2>/dev/null || true
-        cp -r ../core . 2>/dev/null || true
-        cp -r ../workflows . 2>/dev/null || true
-        cp -r ../cli . 2>/dev/null || true
-        cp -r ../lib . 2>/dev/null || true
-        cp -r ../config . 2>/dev/null || true
-        cp ../agentswarm . 2>/dev/null || true
-        cp ../install.sh . 2>/dev/null || true
-        cp ../requirements.txt . 2>/dev/null || true
-        cp ../pytest.ini . 2>/dev/null || true
-        cp ../VERSION agentswarm-VERSION 2>/dev/null || true
+        # Copy AgentSwarm components to template repo (maintain agentswarm/ folder structure)
+        rm -rf agentswarm/ 2>/dev/null || true
+        mkdir -p agentswarm/
+        
+        # Copy production code to agentswarm/ directory (no tests)
+        cp -r ../agents agentswarm/ 2>/dev/null || true
+        cp -r ../core agentswarm/ 2>/dev/null || true
+        cp -r ../workflows agentswarm/ 2>/dev/null || true
+        cp -r ../cli agentswarm/ 2>/dev/null || true
+        cp -r ../lib agentswarm/ 2>/dev/null || true
+        cp -r ../config agentswarm/ 2>/dev/null || true
+        cp ../agentswarm agentswarm/ 2>/dev/null || true
+        cp ../install.sh agentswarm/ 2>/dev/null || true
+        cp ../requirements.txt agentswarm/ 2>/dev/null || true
+        cp ../pytest.ini agentswarm/ 2>/dev/null || true
+        cp ../README.md agentswarm/ 2>/dev/null || true
+        
+        # CRITICAL: Update VERSION file to match source repo
+        cp ../VERSION agentswarm/VERSION
+        # Also create the legacy agentswarm-VERSION file
+        cp ../VERSION agentswarm-VERSION
         
         # Check if there are any changes
         if git diff --quiet && git diff --cached --quiet; then
