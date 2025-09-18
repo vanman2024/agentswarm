@@ -126,8 +126,8 @@ jobs:
         
         git push origin $BRANCH_NAME
         
-        # Create pull request using GitHub CLI
-        PR_NUMBER=$(gh pr create \
+        # Create pull request using GitHub CLI and auto-merge
+        PR_URL=$(gh pr create \
           --title "Auto-deploy AgentSwarm $(cat ../VERSION | jq -r .version)" \
           --body "Automated deployment of AgentSwarm components from vanman2024/agentswarm
         
@@ -138,14 +138,10 @@ jobs:
         
         This PR was automatically created by the AgentSwarm repository's semantic versioning workflow." \
           --base main \
-          --head $BRANCH_NAME \
-          --json number \
-          --jq '.number')
+          --head $BRANCH_NAME)
         
-        echo "Created PR #$PR_NUMBER"
+        echo "Created PR: $PR_URL"
         
-        # Auto-merge the PR immediately
-        echo "Auto-merging PR #$PR_NUMBER..."
-        gh pr merge $PR_NUMBER --squash --delete-branch --body "Auto-merged AgentSwarm deployment $(cat ../VERSION | jq -r .version)"
-        
-        echo "✅ AgentSwarm components auto-deployed and merged!"
+        # Auto-merge the PR
+        echo "Auto-merging PR: $PR_URL"
+        gh pr merge $PR_URL --squash --delete-branch
