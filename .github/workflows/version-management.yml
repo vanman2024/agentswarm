@@ -1,0 +1,72 @@
+name: Automatic Version Management
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: write
+  actions: read
+  checks: read
+  pull-requests: write
+
+jobs:
+  version-management:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Install semantic-release dependencies
+      run: |
+        npm install --no-save \
+          semantic-release \
+          @semantic-release/changelog \
+          @semantic-release/git \
+          @semantic-release/github \
+          @semantic-release/exec
+
+    - name: Update VERSION file and create release
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        # Create semantic-release config
+        cat > .releaserc.json << 'EOF'
+        {
+          "branches": ["main"],
+          "plugins": [
+            "@semantic-release/commit-analyzer",
+            "@semantic-release/release-notes-generator",
+            [
+              "@semantic-release/exec",
+              {
+                "prepareCmd": "echo '{\"version\": \"v${nextRelease.version}\", \"commit\": \"'$GITHUB_SHA'\", \"build_date\": \"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'\", \"build_type\": \"production\"}' > VERSION"
+              }
+            ],
+            [
+              "@semantic-release/git",
+              {
+                "assets": ["VERSION"],
+                "message": "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
+              }
+            ],
+            "@semantic-release/github"
+          ]
+        }
+        EOF
+        
+        # Run semantic-release
+        npx semantic-release
+
