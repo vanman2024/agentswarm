@@ -85,7 +85,7 @@ jobs:
         git config user.email "github-actions[bot]@users.noreply.github.com"
         
         # Create a new branch for this deployment
-        BRANCH_NAME="auto-deploy/agentswarm-$(date +%Y%m%d-%H%M%S)"
+        BRANCH_NAME="auto-deploy/devops-$(date +%Y%m%d-%H%M%S)"
         git checkout -b $BRANCH_NAME
         
         # Use intelligent sync script to copy ALL application files (excluding dev/test)
@@ -105,9 +105,9 @@ jobs:
         
         # Commit and push changes
         git add -A
-        git commit -m "feat: Auto-deploy AgentSwarm components $VERSION
+        git commit -m "feat: Auto-deploy DevOps components $VERSION
 
-        Auto-deployment from vanman2024/agentswarm
+        Auto-deployment from vanman2024/devops
         Commit: $GITHUB_SHA
         Build date: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
         
@@ -115,15 +115,15 @@ jobs:
         
         # Create pull request using GitHub CLI
         PR_URL=$(gh pr create \
-          --title "Auto-deploy AgentSwarm $VERSION" \
-          --body "Automated deployment of AgentSwarm components from vanman2024/agentswarm
+          --title "Auto-deploy DevOps $VERSION" \
+          --body "Automated deployment of DevOps components from vanman2024/devops
         
         ## Changes
-        - Updated AgentSwarm AI agent tools
+        - Updated DevOps automation tools
         - Version: $VERSION
         - Source commit: $GITHUB_SHA
         
-        This PR was automatically created by the AgentSwarm repository's semantic versioning workflow." \
+        This PR was automatically created by the DevOps repository's semantic versioning workflow." \
           --base main \
           --head $BRANCH_NAME)
         
@@ -135,3 +135,4 @@ jobs:
           echo "❌ Auto-merge failed, PR created but requires manual merge: $PR_URL"
           exit 1
         fi
+
