@@ -26,3 +26,12 @@
 - Follow Conventional Commits (`feat:`, `fix:`, `docs:`, `chore:`) as seen in `f722436 feat: enhance CLI with status command...`. Keep each commit scoped and test-backed.
 - PRs should describe workflow/CLI impacts, include relevant CLI or JSON snippets, and link issues (`Fixes #123`). Highlight any data migrations or manual cleanup steps.
 - Confirm formatting, linting, and `pytest -ra --cov=agentswarm` pass before requesting review; note intentionally skipped markers (`slow`, `live`) in the PR body.
+
+## Deployment & Versioning Protocol
+- **Never edit `VERSION` manually.** Semantic-release in the DevOps repo is the single authority for version bumps. Local edits break the automation.
+- To deliver runtime updates to the multi-agent template:
+  1. Merge changes into `main` with conventional commits.
+  2. Trigger the DevOps release workflow (it will bump `VERSION`, tag, and publish artifacts).
+  3. Run `scripts/intelligent-auto-deploy.sh <template-dir> <source-dir>` to copy the curated runtime payload (`src/`, `bin/agentswarm`, `agentswarm.yaml`, `specs/`, etc.) into the template.
+  4. Let the DevOps pipeline promote the new AgentSwarm version into the template’s component matrix—do not overwrite template `VERSION` or component metadata by hand.
+- If the template shows an outdated component version, verify the DevOps release ran. Use that pipeline to publish a new semantic release instead of hacking files in this repo or the template.
