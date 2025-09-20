@@ -13,7 +13,7 @@ echo "   Source: $SOURCE_DIR"
 echo "   Target: $TARGET"
 
 rm -rf "$TARGET"
-mkdir -p "$TARGET/src" "$TARGET/bin" "$TARGET/specs"
+mkdir -p "$TARGET/src" "$TARGET/bin"
 
 if [[ -d "$SOURCE_DIR/src" ]]; then
   rsync -a --delete "$SOURCE_DIR/src/" "$TARGET/src/"
@@ -30,10 +30,6 @@ for file in install.sh requirements.txt README.md agentswarm.yaml; do
     cp "$SOURCE_DIR/$file" "$TARGET/$file"
   fi
 done
-
-if [[ -d "$SOURCE_DIR/specs" ]]; then
-  rsync -a --delete "$SOURCE_DIR/specs/" "$TARGET/specs/"
-fi
 
 if [[ -f "$SOURCE_DIR/VERSION" ]]; then
   cp "$SOURCE_DIR/VERSION" "$TARGET/VERSION"
