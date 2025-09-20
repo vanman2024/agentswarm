@@ -6,7 +6,10 @@ from datetime import UTC, datetime
 
 import pytest
 
+from click.testing import CliRunner
+
 from agentswarm.cli.main import (
+    cli,
     _build_plan_snapshot,
     _deployment_to_dict,
     _workflow_execution_to_dict,
@@ -73,3 +76,22 @@ def test_workflow_execution_to_dict_serialises_fields() -> None:
     assert payload["status"] == "completed"
     assert len(payload["steps"]) == 2
     assert payload["steps"][0]["result_summary"]
+
+
+@pytest.mark.unit
+def test_doctor_reports_missing_command_template(tmp_path) -> None:
+    config_path = tmp_path / "agentswarm.yaml"
+    config_path.write_text(
+        """
+agents:
+  codex:
+    instances: 1
+""",
+        encoding="utf-8",
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["--project", str(tmp_path), "doctor"])
+
+    assert result.exit_code != 0
+    assert "Missing command_template" in result.output

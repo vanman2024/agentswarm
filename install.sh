@@ -1,14 +1,14 @@
 #!/bin/bash
-# SignalHire Agent Installation Script
+# AgentSwarm installation helper
 #
-# PURPOSE: Set up a working Python environment (venv if available) and install production dependencies
+# PURPOSE: Set up a working Python environment (venv if available) and install runtime dependencies
 # USAGE: ./install.sh
-# PART OF: Production deployment package
-# CONNECTS TO: signalhire-agent CLI wrapper, requirements.txt
+# PART OF: AgentSwarm runtime package
+# CONNECTS TO: agentswarm CLI wrapper, requirements.txt
 
 set -euo pipefail
 
-echo "Installing SignalHire Agent..."
+echo "Installing AgentSwarm runtime..."
 
 # Detect non-interactive/CI mode
 NONINTERACTIVE=${NONINTERACTIVE:-}
@@ -76,10 +76,9 @@ if [ -d "venv" ]; then
     echo "2. Activate virtual environment: source venv/bin/activate"
     echo "3. Run: python3 -m agentswarm.cli.main --help"
     echo ""
-    echo "Or use the CLI wrapper (automatically handles venv): ./signalhire-agent --help"
+    echo "Or use the CLI wrapper (auto-activates venv): ./agentswarm --help"
 else
     echo "2. Run: python3 -m agentswarm.cli.main --help"
     echo ""
-    echo "Or use the CLI wrapper: ./signalhire-agent --help"
+    echo "Or use the CLI wrapper: ./agentswarm --help"
 fi
-

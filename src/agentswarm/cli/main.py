@@ -7,6 +7,9 @@ import asyncio
 import json
 import logging
 import os
+import platform
+import shlex
+import shutil
 import time
 from datetime import datetime, UTC
 from pathlib import Path
@@ -19,6 +22,7 @@ from rich.table import Table
 from rich.live import Live
 
 import psutil
+import yaml
 
 from ..core.config import (
     SwarmConfig,
@@ -62,7 +66,7 @@ COMMAND_TEMPLATE_HINTS = [
 ]
 
 ASSIGNMENT_RULES_PATH = (
-    Path(__file__).resolve().parent / "resources" / "assignment_rules.yaml"
+    Path(__file__).resolve().parent.parent / "resources" / "assignment_rules.yaml"
 )
 
 
@@ -146,7 +150,25 @@ def _warn_missing_command_templates(config: SwarmConfig) -> None:
 @click.option("--verbose", is_flag=True, help="Enable verbose logging")
 @click.pass_context
 def cli(ctx: click.Context, project: Optional[Path], verbose: bool) -> None:
-    """AgentSwarm - Enterprise Multi-Agent Orchestration CLI"""
+    """AgentSwarm orchestrates autonomous CLIs so solo founders can run multi-agent teams.
+
+    🚀 Quick start
+      agentswarm init ./project --agents codex:2,claude:1
+      cd project && agentswarm deploy --dry-run
+
+    🧭 During a sprint
+      agentswarm deploy --config agentswarm.yaml
+      agentswarm monitor --logs
+      agentswarm agents list --format json
+
+    🛠  Management helpers
+      agentswarm command-templates  # show non-interactive CLI patterns
+      agentswarm assignment-rules   # review routing heuristics
+      agentswarm doctor             # run environment & config diagnostics
+
+    Each agent definition needs a non-interactive command template so AgentSwarm can
+    hand off task files headlessly. See README for detailed examples and automation flows.
+    """
 
     _configure_logging(verbose)
     resolved_project = _resolve_project_path(project)
@@ -212,6 +234,11 @@ def init(project_path: Path, agents: str, config_template: Optional[Path], force
 @click.option("--task", help="Task description for agents")
 @click.option("--dry-run", is_flag=True, help="Show deployment plan without executing")
 @click.option(
+    "--guide",
+    is_flag=True,
+    help="Walk through agent command templates and tasks, then exit",
+)
+@click.option(
     "--output",
     "output_format",
     default="table",
@@ -225,9 +252,16 @@ def deploy(
     config_file: Optional[Path],
     task: Optional[str],
     dry_run: bool,
+    guide: bool,
     output_format: str,
 ) -> None:
-    """Deploy agent swarm with specified configuration"""
+    """Deploy agents with the current configuration.
+
+    • `--dry-run` prints the deployment table without launching anything.
+    • `--guide` explains how each agent will be invoked (non-interactive CLI guidance)
+      and exits. Combine with `--config` to review alternate manifests.
+    • Supply `--task` to append a one-off instruction to every agent.
+    """
 
     project_path: Path = ctx.obj["project"]
     state_store: SwarmStateStore = ctx.obj["state_store"]
@@ -241,6 +275,11 @@ def deploy(
 
     _warn_missing_command_templates(config)
 
+    if guide:
+        _render_deployment_plan(config)
+        _render_deployment_guide(config, project_path)
+        return
+
     if output_format == "table":
         console.print(Panel.fit("Preparing deployment...", style="cyan"))
 
@@ -249,6 +288,7 @@ def deploy(
             console.print_json(data={"plan": _build_plan_snapshot(config)})
         else:
             _render_deployment_plan(config)
+            _render_deployment_hint(project_path)
         return
 
     orchestrator = AgentOrchestrator(project_root=project_path, state_store=state_store)
@@ -258,6 +298,7 @@ def deploy(
         console.print_json(data=_deployment_to_dict(deployment, state_store))
     else:
         _render_deployment_summary(deployment)
+        _render_deployment_hint(project_path)
 
 
 def _render_deployment_plan(config: SwarmConfig) -> None:
@@ -272,6 +313,46 @@ def _render_deployment_plan(config: SwarmConfig) -> None:
         table.add_row(agent_type, instances, tasks)
 
     console.print(table)
+
+
+def _render_deployment_guide(config: SwarmConfig, project_path: Path) -> None:
+    guidance = Table(title="Agent CLI Guidance", box=None)
+    guidance.add_column("Agent", style="cyan")
+    guidance.add_column("command_template", style="green")
+    guidance.add_column("Task Sources", style="white", overflow="fold")
+
+    for agent_type, agent_config in config.iter_agents():
+        template = agent_config.get("command_template", "⚠ missing")
+        tasks = agent_config.get("tasks", [])
+        task_hint = ", ".join(tasks) if tasks else "(no default tasks)"
+        guidance.add_row(agent_type, template, task_hint)
+
+    console.print(guidance)
+
+    console.print(
+        Panel.fit(
+            "Next: ensure each CLI is installed locally, then run `agentswarm deploy` to launch the swarm.",
+            style="cyan",
+        )
+    )
+
+    console.print(
+        Panel.fit(
+            f"Project: {project_path}\nState: {project_path / STATE_DIRECTORY_NAME}",
+            style="dim",
+        )
+    )
+
+
+def _render_deployment_hint(project_path: Path) -> None:
+    follow_up = (
+        "After launch: `agentswarm monitor --project {proj}` | "
+        "`agentswarm agents list --project {proj}` | `agentswarm workflow list`"
+    ).format(proj=project_path)
+
+    console.print(
+        Panel.fit(follow_up, style="cyan")
+    )
 
 
 def _build_plan_snapshot(config: SwarmConfig) -> list[dict[str, Any]]:
@@ -564,6 +645,269 @@ def config(ctx: click.Context, key: str, value: str) -> None:
     console.print(f"Updated {key} in {config_path}", style="green")
 
 
+@cli.command()
+@click.option(
+    "--config",
+    "config_file",
+    type=click.Path(path_type=Path, exists=False, dir_okay=False),
+    help="Config file to validate instead of the default agentswarm.yaml",
+)
+@click.option(
+    "--check-commands",
+    is_flag=True,
+    help="Validate that each command_template resolves to an installed binary",
+)
+@click.option(
+    "--verify-tasks",
+    is_flag=True,
+    help="Verify that referenced task files exist on disk",
+)
+@click.pass_context
+def doctor(
+    ctx: click.Context,
+    config_file: Optional[Path],
+    check_commands: bool,
+    verify_tasks: bool,
+) -> None:
+    """Run diagnostics to verify dependencies, config, and command templates.
+
+    Add `--check-commands` to ensure binaries referenced by command templates
+    are installed, and `--verify-tasks` to confirm referenced task files exist.
+    """
+
+    project_path: Path = ctx.obj["project"]
+
+    console.print(
+        Panel.fit(
+            "AgentSwarm Diagnostics",
+            title="🔍 System Check",
+            style="bold magenta",
+        )
+    )
+
+    issues_found = False
+
+    state_dir = project_path / STATE_DIRECTORY_NAME
+    state_exists = state_dir.exists()
+    state_writable = os.access(state_dir if state_exists else project_path, os.W_OK)
+
+    env_table = Table(title="Environment", box=None)
+    env_table.add_column("Check", style="cyan")
+    env_table.add_column("Value", style="white")
+    env_table.add_row("Python", platform.python_version())
+    env_table.add_row("Project", str(project_path))
+    env_table.add_row("State directory", str(state_dir))
+    env_table.add_row("State exists", "✅" if state_exists else "⚠️")
+    env_table.add_row("State writable", "✅" if state_writable else "❌")
+    console.print(env_table)
+
+    if not state_writable:
+        issues_found = True
+        console.print(
+            Panel.fit(
+                "State directory is not writable. Update permissions or choose a different --project path.",
+                style="red",
+            )
+        )
+
+    required_packages = {
+        "click": "click",
+        "rich": "rich",
+        "pyyaml": "yaml",
+        "psutil": "psutil",
+    }
+
+    deps_table = Table(title="Python Dependencies", box=None)
+    deps_table.add_column("Package", style="cyan")
+    deps_table.add_column("Status", style="white")
+    missing_packages: list[str] = []
+    for package_name, module in required_packages.items():
+        try:
+            __import__(module)
+            deps_table.add_row(package_name, "✅ available")
+        except ImportError:
+            missing_packages.append(package_name)
+            deps_table.add_row(package_name, "❌ missing")
+
+    console.print(deps_table)
+
+    if missing_packages:
+        issues_found = True
+        console.print(
+            Panel.fit(
+                f"Install missing packages: pip install {' '.join(sorted(missing_packages))}",
+                style="red",
+            )
+        )
+
+    config_path = Path(config_file) if config_file else project_path / DEFAULT_CONFIG_FILENAME
+    config_table = Table(title="Configuration", box=None)
+    config_table.add_column("Property", style="cyan")
+    config_table.add_column("Details", style="white")
+
+    swarm_config: Optional[SwarmConfig] = None
+
+    if config_path.exists():
+        config_table.add_row("Config file", str(config_path))
+        try:
+            swarm_config = SwarmConfig.from_file(config_path)
+            agent_summaries: list[str] = []
+            missing_templates: list[str] = []
+            empty_tasks: list[str] = []
+            for agent_type, agent_cfg in swarm_config.iter_agents():
+                instances = agent_cfg.get("instances", 1)
+                tasks = agent_cfg.get("tasks", []) or []
+                template = agent_cfg.get("command_template")
+                if not template:
+                    missing_templates.append(agent_type)
+                if not tasks:
+                    empty_tasks.append(agent_type)
+                agent_summaries.append(
+                    f"{agent_type} (instances={instances}, tasks={len(tasks)})"
+                )
+
+            config_table.add_row("Agents", ", ".join(agent_summaries))
+
+            if missing_templates:
+                issues_found = True
+                console.print(
+                    Panel.fit(
+                        "Missing command_template for: "
+                        + ", ".join(sorted(missing_templates)),
+                        style="yellow",
+                    )
+                )
+            if empty_tasks:
+                console.print(
+                    Panel.fit(
+                        "No default tasks configured for: "
+                        + ", ".join(sorted(empty_tasks))
+                        + ". Agents can still run, but task files must be supplied at deploy time.",
+                        style="yellow",
+                    )
+                )
+        except Exception as exc:  # noqa: BLE001
+            issues_found = True
+            console.print(
+                Panel.fit(
+                    f"Failed to parse configuration at {config_path}: {exc}",
+                    style="red",
+                )
+            )
+    else:
+        issues_found = True
+        config_table.add_row("Config file", f"⚠️ missing ({config_path})")
+        console.print(
+            Panel.fit(
+                "No agentswarm.yaml found. Run `agentswarm init` or provide --config.",
+                style="yellow",
+            )
+        )
+
+    console.print(config_table)
+
+    if swarm_config and (check_commands or verify_tasks):
+        orchestrator = AgentOrchestrator(
+            project_root=project_path,
+            state_store=ctx.obj["state_store"],
+        )
+
+        if check_commands:
+            command_table = Table(title="Command Template Validation", box=None)
+            command_table.add_column("Agent", style="cyan")
+            command_table.add_column("Binary", style="white")
+            command_table.add_column("Status", style="green")
+            command_table.add_column("Sample Command", style="white", overflow="fold")
+
+            for agent_type, agent_cfg in swarm_config.iter_agents():
+                template = agent_cfg.get("command_template")
+                if not template:
+                    command_table.add_row(agent_type, "-", "⚠ missing template", "")
+                    issues_found = True
+                    continue
+
+                command = orchestrator._build_agent_command(agent_type, 1, agent_cfg)
+                try:
+                    parts = shlex.split(command)
+                except ValueError:
+                    command_table.add_row(agent_type, "?", "❌ unable to parse", command)
+                    issues_found = True
+                    continue
+
+                binary = parts[0] if parts else ""
+                resolved = shutil.which(binary) or Path(binary).expanduser().exists()
+                status = "✅ available" if resolved else "❌ missing"
+                if not resolved:
+                    issues_found = True
+                command_table.add_row(agent_type, binary or "?", status, command)
+
+            console.print(command_table)
+
+        if verify_tasks:
+            task_table = Table(title="Task Reference Validation", box=None)
+            task_table.add_column("Agent", style="cyan")
+            task_table.add_column("Task", style="white", overflow="fold")
+            task_table.add_column("Status", style="green")
+
+            for agent_type, agent_cfg in swarm_config.iter_agents():
+                tasks = agent_cfg.get("tasks", []) or []
+                if not tasks:
+                    task_table.add_row(agent_type, "(no default tasks)", "ℹ")
+                    continue
+
+                for entry in tasks:
+                    task_ref = entry
+                    file_part = entry.split("#", maxsplit=1)[0]
+                    task_path = (project_path / file_part).resolve()
+                    exists = task_path.exists()
+                    status = "✅" if exists else "❌ missing"
+                    if not exists:
+                        issues_found = True
+                    task_table.add_row(agent_type, task_ref, status)
+
+            console.print(task_table)
+
+    rules_table = Table(title="Assignment Rules", box=None)
+    rules_table.add_column("Check", style="cyan")
+    rules_table.add_column("Details", style="white")
+
+    if ASSIGNMENT_RULES_PATH.exists():
+        rules_table.add_row("File", str(ASSIGNMENT_RULES_PATH))
+        try:
+            rules = _load_assignment_rules()
+            rules_table.add_row("Sections", ", ".join(rules.keys()) if rules else "(empty)")
+        except Exception as exc:  # noqa: BLE001
+            issues_found = True
+            rules_table.add_row("Status", f"❌ failed to parse ({exc})")
+    else:
+        issues_found = True
+        rules_table.add_row("File", f"❌ missing ({ASSIGNMENT_RULES_PATH})")
+        console.print(
+            Panel.fit(
+                "Assignment rules file not found. Ensure template sync includes resources/assignment_rules.yaml.",
+                style="yellow",
+            )
+        )
+
+    console.print(rules_table)
+
+    if issues_found:
+        console.print(
+            Panel.fit(
+                "Diagnostics completed with issues. Resolve warnings above and re-run `agentswarm doctor`.",
+                style="red",
+            )
+        )
+        ctx.exit(1)
+
+    console.print(
+        Panel.fit(
+            "All systems ready. Deploy your swarm with confidence!",
+            style="green",
+        )
+    )
+
+
 @cli.command("command-templates")
 @click.option(
     "--format",
@@ -591,6 +935,13 @@ def command_templates_help(format: str) -> None:
         table.add_row(agent, template, example)
 
     console.print(table)
+
+    console.print(
+        Panel.fit(
+            "Placeholders: {task}, {task_list}, {tasks_json}, {project}, {agent}, {instance}",
+            style="cyan",
+        )
+    )
 
 
 def _load_assignment_rules() -> dict[str, Any]:

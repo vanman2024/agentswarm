@@ -1,5 +1,5 @@
 #!/bin/bash
-# SignalHire Agent CLI Wrapper
+# AgentSwarm CLI bootstrapper
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -19,7 +19,7 @@ if [ -d "$SCRIPT_DIR/venv" ]; then
     fi
 fi
 
-export PYTHONPATH="$SCRIPT_DIR:$PYTHONPATH"
+export PYTHONPATH="$SCRIPT_DIR/src:$SCRIPT_DIR:$PYTHONPATH"
 
 # Load .env if it exists
 if [ -f "$SCRIPT_DIR/.env" ]; then

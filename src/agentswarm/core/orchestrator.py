@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import subprocess
 from datetime import UTC, datetime
@@ -261,6 +262,35 @@ class AgentOrchestrator:
     def _build_agent_command(
         self, agent_type: str, instance_id: int, config: AgentConfig
     ) -> str:
+        template = config.get("command_template")
+        raw_tasks = config.get("tasks", [])
+
+        if isinstance(raw_tasks, str):
+            tasks = [raw_tasks]
+        else:
+            tasks = list(raw_tasks)
+
+        if template:
+            task_payload = tasks[0] if len(tasks) == 1 else " && ".join(tasks)
+            substitutions = {
+                "task": task_payload,
+                "task_list": " ".join(tasks),
+                "tasks_json": json.dumps(tasks),
+                "project": str(self.project_root),
+                "agent": agent_type,
+                "instance": instance_id,
+            }
+
+            try:
+                return template.format(**substitutions)
+            except Exception:  # noqa: BLE001
+                self.logger.warning(
+                    "Failed to format command_template for %s instance %s",  # noqa: G004
+                    agent_type,
+                    instance_id,
+                    exc_info=True,
+                )
+
         commands = {
             "codex": f'codex exec "Working on instance {instance_id}"',
             "claude": f'claude -p "Working on instance {instance_id}"',

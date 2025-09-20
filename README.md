@@ -65,6 +65,16 @@ agents:
 
 With those templates in place, AgentSwarm can hand any task string to the agent without prompting for interactive input.
 
+Run `agentswarm doctor` any time you need to validate that command templates and dependencies are wired up correctly. It will highlight missing `command_template` values, dependency gaps, or assignment-rule sync issues before you start a deployment.
+
+Available placeholders inside `command_template`:
+
+- `{task}` → Primary task payload (single entry or all tasks joined with `&&`)
+- `{task_list}` → Tasks joined by spaces (useful for argument lists)
+- `{tasks_json}` → JSON array of every task string
+- `{project}` → Absolute path to the project root passed via `--project`
+- `{agent}` / `{instance}` → Agent type and instance id at runtime
+
 ### Example task payload
 
 Most teams keep human-readable task lists in `specs/<feature>/tasks.md` or `.agents/<agent>/tasks.md`. You can feed those files to the agents by putting instructions in the command template:
@@ -78,6 +88,16 @@ That results in commands such as:
 ```
 gemini -m 1.5-pro-latest -p "Read specs/payment-flow/tasks.md, find all @gemini tasks, execute them sequentially"
 ```
+
+### Deployment guidance from the CLI
+
+- `agentswarm deploy --guide` prints the deployment matrix plus each agent's `command_template`, so you can confirm non-interactive invocation before launching anything.
+- `agentswarm deploy --dry-run` still shows the classic plan table; it now adds follow-up suggestions for monitoring and workflow commands.
+- `agentswarm doctor --check-commands --verify-tasks` confirms referenced binaries are on `PATH` and that every task file listed in your config exists.
+- Task ownership stays inside the markdown specs: agents parse `## @agent` sections in `specs/.../tasks.md`. The CLI never injects `@codex` or `@claude` into command strings—it simply hands each agent the file/anchor to read.
+- Template sync CI can skip the richer CLI smoketests by leaving `AGENTSWARM_RUN_TEMPLATE_TESTS` unset. Set `AGENTSWARM_RUN_TEMPLATE_TESTS=1` when you want the full suite (guide + doctor validations) to run locally or in a release pipeline.
+
+The repository ships with a starter specification at `specs/default/tasks.md`, which maps to the default `agentswarm.yaml`. Update those files (or generate new ones from Spec Kit) before handing work to the swarm.
 
 ---
 ## Management / Intervention CLI (concept)

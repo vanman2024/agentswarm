@@ -1,0 +1,21 @@
+agents:
+  codex:
+    instances: 1
+    command_template: "codex exec \"Read {task} and execute the tasks under your agent heading.\""
+    tasks:
+      - "specs/default/tasks.md"
+  gemini:
+    instances: 1
+    command_template: "gemini -m 1.5-pro-latest -p \"Read {task} and execute the tasks under your agent heading.\""
+    tasks:
+      - "specs/default/tasks.md"
+  qwen:
+    instances: 1
+    command_template: "qwen -p \"Read {task} and execute the tasks under your agent heading.\""
+    tasks:
+      - "specs/default/tasks.md"
+  claude:
+    instances: 1
+    command_template: "claude -p \"Read {task} and execute the tasks under your agent heading.\""
+    tasks:
+      - "specs/default/tasks.md"
