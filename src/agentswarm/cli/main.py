@@ -38,6 +38,33 @@ console = Console()
 
 DEFAULT_CONFIG_FILENAME = "agentswarm.yaml"
 
+COMMAND_TEMPLATE_HINTS = [
+    (
+        "codex",
+        "codex exec '{task}'",
+        "codex exec \"Review specs/api/tasks.md for @codex items and implement them\"",
+    ),
+    (
+        "claude",
+        "claude -p '{task}'",
+        "claude -p \"Summarise blockers and architecture decisions for the current sprint\"",
+    ),
+    (
+        "gemini",
+        "gemini -m 1.5-pro-latest -p '{task}'",
+        "gemini -m 1.5-pro-latest -p \"Read specs/payment-flow/tasks.md, find @gemini tasks, execute them sequentially\"",
+    ),
+    (
+        "qwen",
+        "qwen -p '{task}'",
+        "qwen -p \"Optimise the checkout query performance and report improvements\"",
+    ),
+]
+
+ASSIGNMENT_RULES_PATH = (
+    Path(__file__).resolve().parent / "resources" / "assignment_rules.yaml"
+)
+
 
 def _configure_logging(verbose: bool) -> None:
     level = logging.DEBUG if verbose else logging.INFO
@@ -88,6 +115,30 @@ def _load_config(
         )
 
     return config
+
+
+def _warn_missing_command_templates(config: SwarmConfig) -> None:
+    missing: list[str] = []
+    for agent_type, agent_cfg in config.iter_agents():
+        if not agent_cfg.get("command_template"):
+            missing.append(agent_type)
+
+    if missing:
+        table = Table(title="Agent CLI Command Templates Required", box=None)
+        table.add_column("Agent", style="cyan")
+        table.add_column("Suggested command_template", style="green")
+        for agent, template, _ in COMMAND_TEMPLATE_HINTS:
+            marker = "⚠" if agent in missing else " "
+            table.add_row(f"{marker} {agent}", template)
+
+        console.print(
+            Panel(
+                "One or more agents are missing a command_template. Update your configuration so each CLI runs non-interactively.",
+                style="yellow",
+                title="Configuration warning",
+            )
+        )
+        console.print(table)
 
 
 @click.group()
@@ -187,6 +238,8 @@ def deploy(
         task=task,
         project_path=project_path,
     )
+
+    _warn_missing_command_templates(config)
 
     if output_format == "table":
         console.print(Panel.fit("Preparing deployment...", style="cyan"))
@@ -450,9 +503,11 @@ def status(ctx: click.Context, output_format: str) -> None:
     
     if output_format == "json":
         import json
+
         console.print(json.dumps(latest, indent=2, default=str))
     elif output_format == "yaml":
         import yaml
+
         console.print(yaml.dump(latest, default_flow_style=False))
     else:
         # Enhanced table format with more details
@@ -507,6 +562,66 @@ def config(ctx: click.Context, key: str, value: str) -> None:
     ).to_yaml(config_path)
 
     console.print(f"Updated {key} in {config_path}", style="green")
+
+
+@cli.command("command-templates")
+@click.option(
+    "--format",
+    type=click.Choice(["table", "yaml"], case_sensitive=False),
+    default="table",
+    help="Render CLI usage hints as a table or YAML snippet",
+)
+def command_templates_help(format: str) -> None:
+    """Show recommended CLI command_template values for agents."""
+
+    if format.lower() == "yaml":
+        snippet_lines = ["agents:"]
+        for agent, template, _ in COMMAND_TEMPLATE_HINTS:
+            snippet_lines.append(f"  {agent}:")
+            snippet_lines.append(f"    command_template: \"{template}\"")
+        console.print("\n".join(snippet_lines))
+        return
+
+    table = Table(title="Agent CLI Command Templates")
+    table.add_column("Agent", style="cyan")
+    table.add_column("command_template", style="green")
+    table.add_column("Example invocation", style="white", overflow="fold")
+
+    for agent, template, example in COMMAND_TEMPLATE_HINTS:
+        table.add_row(agent, template, example)
+
+    console.print(table)
+
+
+def _load_assignment_rules() -> dict[str, Any]:
+    if not ASSIGNMENT_RULES_PATH.exists():
+        return {}
+    with ASSIGNMENT_RULES_PATH.open("r", encoding="utf-8") as handle:
+        return yaml.safe_load(handle) or {}
+
+
+@cli.command("assignment-rules")
+@click.option(
+    "--format",
+    type=click.Choice(["yaml", "json"], case_sensitive=False),
+    default="yaml",
+    help="Render assignment rules as YAML (default) or JSON",
+)
+def assignment_rules_help(format: str) -> None:
+    """Display the built-in assignment rules used for agent tagging."""
+
+    rules = _load_assignment_rules()
+    if not rules:
+        console.print(
+            f"Assignment rules not found. Expected at {ASSIGNMENT_RULES_PATH}",
+            style="yellow",
+        )
+        return
+
+    if format.lower() == "json":
+        console.print_json(data=rules)
+    else:
+        console.print(yaml.safe_dump(rules, sort_keys=False))
 
 
 @cli.group("agents")

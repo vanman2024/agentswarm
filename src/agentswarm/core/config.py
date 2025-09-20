@@ -197,6 +197,7 @@ def create_default_config() -> SwarmConfig:
                     "timeout": "30m",
                 },
                 "tasks": ["code_generation", "testing"],
+                "command_template": "codex exec '{task}'",
             },
             "claude": {
                 "instances": 1,
@@ -205,6 +206,7 @@ def create_default_config() -> SwarmConfig:
                     "timeout": "30m",
                 },
                 "tasks": ["architecture_review", "documentation"],
+                "command_template": "claude -p '{task}'",
             },
         }
     )
@@ -231,6 +233,7 @@ agents:
     tasks:
       - architecture_review
       - documentation
+    command_template: "claude -p '{task}'"
   gemini:
     instances: 1
     resources:
@@ -238,6 +241,10 @@ agents:
       timeout: "30m"
     tasks:
       - performance_analysis
+    command_template: "gemini -m 1.5-pro-latest -p '{task}'"
+  qwen:
+    instances: 1
+    command_template: "qwen -p '{task}'"
 
 deployment:
   strategy: parallel

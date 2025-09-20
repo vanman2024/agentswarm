@@ -1,0 +1,104 @@
+assignment_rules:
+  security_tasks:
+    agent: "@gemini"
+    patterns:
+      - "security audit"
+      - "vulnerability scan"
+      - "OWASP compliance"
+      - "authentication review"
+      - "authorization check"
+      - "input validation"
+      - "security analysis"
+      - "architecture review"
+      - "threat modeling"
+      - "penetration testing"
+    complexity_range: [3, 5]
+
+  performance_tasks:
+    agent: "@qwen"
+    patterns:
+      - "performance optimization"
+      - "database tuning"
+      - "query optimization"
+      - "caching strategy"
+      - "code quality review"
+      - "algorithm optimization"
+      - "memory optimization"
+      - "speed improvement"
+      - "bottleneck analysis"
+      - "load testing"
+    complexity_range: [2, 4]
+
+  implementation_tasks:
+    agent: "@codex"
+    patterns:
+      - "modular system"
+      - "create module"
+      - "implement feature"
+      - "build component"
+      - "testing framework"
+      - "unit tests"
+      - "integration tests"
+      - "API endpoint"
+      - "frontend component"
+      - "user interface"
+    complexity_range: [1, 4]
+    size_range: ["XS", "L"]
+
+  integration_tasks:
+    agent: "@claude"
+    patterns:
+      - "integration"
+      - "coordination"
+      - "orchestration"
+      - "architecture design"
+      - "system design"
+      - "complex feature"
+      - "multi-component"
+      - "final review"
+      - "deployment"
+      - "production ready"
+    complexity_range: [3, 5]
+    size_range: ["M", "XL"]
+
+processing:
+  fallback_agent: "@claude"
+  escalation:
+    complexity_threshold: 4
+    size_threshold: "L"
+    escalate_to: "@claude"
+  parallel_execution:
+    different_files: true
+    independent_modules: true
+    same_file_sequential: true
+  dependency_handling:
+    respect_task_order: true
+    wait_for_dependencies: true
+    timeout_minutes: 60
+
+agent_profiles:
+  "@gemini":
+    strengths: ["security", "architecture", "analysis", "documentation"]
+    max_concurrent_tasks: 3
+    preferred_task_types: ["analysis", "review", "documentation"]
+
+  "@qwen":
+    strengths: ["optimization", "performance", "algorithms", "code_quality"]
+    max_concurrent_tasks: 4
+    preferred_task_types: ["optimization", "refactoring", "analysis"]
+
+  "@codex":
+    strengths: ["implementation", "testing", "frontend", "rapid_development"]
+    max_concurrent_tasks: 5
+    preferred_task_types: ["implementation", "testing", "ui_development"]
+
+  "@claude":
+    strengths: ["integration", "coordination", "complex_logic", "architecture"]
+    max_concurrent_tasks: 3
+    preferred_task_types: ["coordination", "integration", "complex_features"]
+
+monitoring:
+  track_assignment_accuracy: true
+  measure_task_completion_time: true
+  log_agent_performance: true
+  generate_reports: true
