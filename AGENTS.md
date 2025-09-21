@@ -11,6 +11,10 @@
 - `source venv/bin/activate && python -m agentswarm.cli.main --help` exercises the CLI directly; `./agentswarm workflow run codebase-analysis --context '{"repo":"/workspace"}'` runs an end-to-end workflow.
 - `pytest -ra --cov=agentswarm` runs the full backend matrix; scope suites with `pytest tests/backend/cli`, `pytest -m "integration and not slow"`, or `pytest -m contract`.
 
+## Performance Optimization
+- The CLI bootstrap script now includes enhanced .env loading with fallback error handling for better reliability in various shell environments.
+- Virtual environment detection is optimized to prefer WSL-native Python over Windows Python when running in WSL contexts.
+
 ## Coding Style & Naming Conventions
 - Adopt 4-space indentation, `snake_case` for modules/functions/options, `PascalCase` for classes, and append `Agent`/`Workflow` to orchestration types for clarity.
 - Format with `black` (line length 88) and `isort --profile black`; lint via `flake8`, type-check with `mypy src`. Run these before pushing.

@@ -21,9 +21,15 @@ fi
 
 export PYTHONPATH="$SCRIPT_DIR/src:$SCRIPT_DIR:$PYTHONPATH"
 
-# Load .env if it exists
+# Load .env if it exists (with error handling)
 if [ -f "$SCRIPT_DIR/.env" ]; then
-    export $(grep -v '^#' "$SCRIPT_DIR/.env" | xargs)
+    set -a  # Automatically export all variables
+    # shellcheck disable=SC1091
+    source "$SCRIPT_DIR/.env" 2>/dev/null || {
+        # Fallback to safer parsing if sourcing fails
+        export $(grep -v '^#' "$SCRIPT_DIR/.env" | grep -v '^$' | xargs -0)
+    }
+    set +a  # Stop auto-exporting
 fi
 
 # Run the CLI with correct Python
