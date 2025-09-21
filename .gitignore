@@ -2,6 +2,10 @@
 # Ignore legacy JS implementation assets
 specs/local-first-cli-system/implementation/
 
-specs/
+# Ignore most specs assets but keep local-first task tracker
+specs/*
+!specs/local-first-cli-system/
+specs/local-first-cli-system/*
+!specs/local-first-cli-system/tasks.md
 __pycache__/
 .local-state/
