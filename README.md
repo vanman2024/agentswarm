@@ -6,7 +6,7 @@ AgentSwarm is a lightweight orchestration layer for coordinating multiple AI age
 2. **Assign / redirect** tasks programmatically using each agent's non-interactive CLI.
 3. **Monitor** progress and state through persistent deployment metadata (and optional workflow execution).
 
-The system deliberately separates three layers:
+The system deliberately separates three layers for clean architecture:
 
 | Layer | Responsibility | Git folders |
 | --- | --- | --- |
