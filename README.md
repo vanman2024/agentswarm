@@ -75,6 +75,41 @@ Available placeholders inside `command_template`:
 - `{project}` → Absolute path to the project root passed via `--project`
 - `{agent}` / `{instance}` → Agent type and instance id at runtime
 
+---
+## Local-first CLI workflow
+
+AgentSwarm ships with helper commands that manage the local-first task system alongside deployments.
+
+### `agentswarm task`
+
+| Command | Description |
+| --- | --- |
+| `agentswarm task create "Add loading spinners" --agent codex --scope frontend/` | Creates a `local-###` task and appends it to the correct agent section while seeding `.local-state/`. |
+| `agentswarm task list --status pending --format json` | Lists tasks with filters; JSON output feeds dashboards or additional automation. |
+| `agentswarm task start local-003 --no-git` | Marks the task as in progress and opens a work session (skip git branch creation with `--no-git`). |
+| `agentswarm task complete local-003 --skip-qa` | Runs QA commands (unless skipped) and records completion in `.local-state/active-work.json`. |
+| `agentswarm task status` / `agentswarm task resume` | Summarises backlog counts and resumes the most recent session automatically. |
+
+### `agentswarm spec`
+
+| Command | Description |
+| --- | --- |
+| `agentswarm spec create-feature "Realtime metrics" --requires-frontend --agent codex --agent claude` | Generates a spec-kit compatible folder with `spec.md`, `plan.md`, `tasks.md`, and `implementation/` scaffolding. |
+| `agentswarm spec list-features` | Enumerates existing feature folders under `specs/`. |
+| `agentswarm spec validate feature-name` | Ensures required spec files and implementation subdirectories exist. |
+
+### `agentswarm local`
+
+| Command | Description |
+| --- | --- |
+| `agentswarm local init` | Bootstraps `.local-state/` with README + initial state JSON files. |
+| `agentswarm local status` | Shows pending/in-progress/completed counts plus the next actionable task. |
+| `agentswarm local validate` | Checks dependency references and flags uninitialised state. |
+
+### `agentswarm agents assign`
+
+Use `agentswarm agents assign codex --tasks "specs/payment-flow/tasks.md#codex,docs/ADR-009.md"` to push new task payloads into a running deployment. The orchestrator persists the list alongside each process, and `agents list --format json` now surfaces a `tasks` field so dashboards know what each agent is working on.
+
 ### Example task payload
 
 Most teams keep human-readable task lists in `specs/<feature>/tasks.md` or `.agents/<agent>/tasks.md`. You can feed those files to the agents by putting instructions in the command template:
