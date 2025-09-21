@@ -127,11 +127,11 @@ jobs:
         else
           git commit -m "chore: sync AgentSwarm to $AGENTSWARM_VERSION
 
-Automated sync of AgentSwarm component from vanman2024/agentswarm.
+          Automated sync of AgentSwarm component from vanman2024/agentswarm.
 
-🤖 Generated with [Claude Code](https://claude.ai/code)
+          🤖 Generated with [Claude Code](https://claude.ai/code)
 
-Co-Authored-By: Claude <noreply@anthropic.com>"
+          Co-Authored-By: Claude <noreply@anthropic.com>"
           git push
           echo "✅ AgentSwarm synced to template successfully"
         fi
