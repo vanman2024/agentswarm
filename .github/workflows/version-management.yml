@@ -112,7 +112,7 @@ jobs:
           --exclude '*.pyc' \
           --exclude '*.pyo' \
           --exclude 'deploy-to-template.sh' \
-          --exclude 'scripts/' \
+          --exclude 'scripts/intelligent-auto-deploy.sh' \
           --exclude 'node_modules/' \
           --exclude 'config/' \
           --exclude 'devops/' \
