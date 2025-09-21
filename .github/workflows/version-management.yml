@@ -71,8 +71,10 @@ jobs:
         npx semantic-release
       continue-on-error: true
 
-    - name: Trigger template component sync
+    - name: Sync AgentSwarm to template repository
       if: always()
+      env:
+        PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
       run: |
         # Get the current version from VERSION file
         AGENTSWARM_VERSION=""
@@ -85,26 +87,54 @@ jobs:
           AGENTSWARM_VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "v1.5.3")
         fi
         
-        echo "🚀 Triggering template sync for AgentSwarm $AGENTSWARM_VERSION"
+        echo "🚀 Syncing AgentSwarm $AGENTSWARM_VERSION to template..."
         
-        # Send repository_dispatch event to template repo
-        curl -X POST \
-          -H "Authorization: token ${{ secrets.PAT_TOKEN }}" \
-          -H "Accept: application/vnd.github.v3+json" \
-          https://api.github.com/repos/vanman2024/multi-agent-claude-code/dispatches \
-          -d "{
-            \"event_type\": \"component-release\",
-            \"client_payload\": {
-              \"component\": \"agentswarm\",
-              \"version\": \"$AGENTSWARM_VERSION\",
-              \"source_repo\": \"vanman2024/agentswarm\",
-              \"ref\": \"main\",
-              \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",
-              \"trigger_source\": \"agentswarm-version-management\"
-            }
-          }"
+        # Clone template repository
+        git clone https://oauth2:${PAT_TOKEN}@github.com/vanman2024/multi-agent-claude-code /tmp/template
+        cd /tmp/template
         
-        echo "✅ Template sync triggered for AgentSwarm $AGENTSWARM_VERSION"
+        # Configure git
+        git config user.name "GitHub Action"
+        git config user.email "action@github.com"
+        
+        # Remove existing agentswarm directory
+        rm -rf agentswarm/*
+        
+        # Copy AgentSwarm files with same exclusions as deploy-to-template.sh
+        rsync -a \
+          --exclude 'tests/' \
+          --exclude 'tests/**' \
+          --exclude '*.toml' \
+          --exclude '__pycache__/' \
+          --exclude '.pytest_cache/' \
+          --exclude '.git/' \
+          --exclude '.github/' \
+          --exclude '*.pyc' \
+          --exclude '*.pyo' \
+          --exclude 'deploy-to-template.sh' \
+          $GITHUB_WORKSPACE/ agentswarm/
+        
+        # Copy template version of pyproject.toml if it exists
+        if [[ -f "$GITHUB_WORKSPACE/pyproject.toml.template" ]]; then
+          cp "$GITHUB_WORKSPACE/pyproject.toml.template" agentswarm/pyproject.toml.template
+          echo "✅ Copied pyproject.toml.template for new projects"
+        fi
+        
+        # Commit and push changes
+        git add agentswarm/
+        if git diff --staged --quiet; then
+          echo "✅ No changes to sync"
+        else
+          git commit -m "chore: sync AgentSwarm to $AGENTSWARM_VERSION
+
+Automated sync of AgentSwarm component from vanman2024/agentswarm.
+
+🤖 Generated with [Claude Code](https://claude.ai/code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>"
+          git push
+          echo "✅ AgentSwarm synced to template successfully"
+        fi
 
     - name: AgentSwarm version management complete
       if: always()
