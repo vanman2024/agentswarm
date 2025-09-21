@@ -141,9 +141,9 @@ VERSION                     # semantic-release updates this JSON payload
 
 1. **Install**: `./install.sh` (creates `venv/` and installs requirements)
 2. **Run lint/tests**: `pytest tests/backend`
-3. **Deploy to template**: The GitHub Actions workflow (.github/workflows/version-management.yml) uses semantic-release to bump `VERSION` and then syncs the minimal payload (`src/`, `bin/agentswarm`, `install.sh`, `requirements.txt`, `VERSION`) into the template repository.
+3. **Deploy to template**: The GitHub Actions workflow (.github/workflows/version-management.yml) uses semantic-release to bump `VERSION` and sends component-release events to the template repository for automatic synchronization via repository_dispatch.
 
-The deployment script deliberately excludes development directories such as `specs/`, `.github/`, `tests/`, `.vscode/`, ensuring the template only receives runtime assets.
+The deployment workflow excludes development directories such as `specs/`, `.github/`, `tests/`, `.vscode/`, ensuring the template only receives runtime assets via the component-sync system.
 
 ---
 ## Next steps
