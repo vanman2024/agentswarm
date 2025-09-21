@@ -6,7 +6,7 @@ AgentSwarm is a lightweight orchestration layer for coordinating multiple AI age
 2. **Assign / redirect** tasks programmatically using each agent's non-interactive CLI.
 3. **Monitor** progress and state through persistent deployment metadata (and optional workflow execution).
 
-The system deliberately separates three layers for clean architecture:
+The system deliberately separates three layers:
 
 | Layer | Responsibility | Git folders |
 | --- | --- | --- |
@@ -78,17 +78,17 @@ Available placeholders inside `command_template`:
 ---
 ## Local-first CLI workflow
 
-AgentSwarm ships with helper commands that manage the local-first task system alongside deployments.
+AgentSwarm includes dedicated command groups for managing the local-first task system alongside deployment orchestration.
 
 ### `agentswarm task`
 
 | Command | Description |
 | --- | --- |
-| `agentswarm task create "Add loading spinners" --agent codex --scope frontend/` | Creates a `local-###` task and appends it to the correct agent section while seeding `.local-state/`. |
-| `agentswarm task list --status pending --format json` | Lists tasks with filters; JSON output feeds dashboards or additional automation. |
-| `agentswarm task start local-003 --no-git` | Marks the task as in progress and opens a work session (skip git branch creation with `--no-git`). |
-| `agentswarm task complete local-003 --skip-qa` | Runs QA commands (unless skipped) and records completion in `.local-state/active-work.json`. |
-| `agentswarm task status` / `agentswarm task resume` | Summarises backlog counts and resumes the most recent session automatically. |
+| `agentswarm task create "Add loading spinners" --agent codex --scope frontend/` | Creates a `local-###` task and appends it to the correct agent section. |
+| `agentswarm task list --status pending --format json` | Lists tasks with optional filters; JSON output makes it easy to feed other automations. |
+| `agentswarm task start local-003 --no-git` | Marks the task as `in_progress`, opening a work session without creating a new branch. |
+| `agentswarm task complete local-003 --skip-qa` | Runs QA commands (unless skipped) and records the completion in `.local-state/active-work.json`. |
+| `agentswarm task status` / `agentswarm task resume` | Summarises backlog counts and resumes the most recent work session automatically. |
 
 ### `agentswarm spec`
 
@@ -96,19 +96,25 @@ AgentSwarm ships with helper commands that manage the local-first task system al
 | --- | --- |
 | `agentswarm spec create-feature "Realtime metrics" --requires-frontend --agent codex --agent claude` | Generates a spec-kit compatible folder with `spec.md`, `plan.md`, `tasks.md`, and `implementation/` scaffolding. |
 | `agentswarm spec list-features` | Enumerates existing feature folders under `specs/`. |
-| `agentswarm spec validate feature-name` | Ensures required spec files and implementation subdirectories exist. |
+| `agentswarm spec validate feature-name` | Ensures required files and implementation subdirectories exist. |
 
 ### `agentswarm local`
 
 | Command | Description |
 | --- | --- |
-| `agentswarm local init` | Bootstraps `.local-state/` with README + initial state JSON files. |
+| `agentswarm local init` | Bootstraps `.local-state/` with README + state files. |
 | `agentswarm local status` | Shows pending/in-progress/completed counts plus the next actionable task. |
-| `agentswarm local validate` | Checks dependency references and flags uninitialised state. |
+| `agentswarm local validate` | Checks for missing dependency references or uninitialised state. |
 
 ### `agentswarm agents assign`
 
-Use `agentswarm agents assign codex --tasks "specs/payment-flow/tasks.md#codex,docs/ADR-009.md"` to push new task payloads into a running deployment. The orchestrator persists the list alongside each process, and `agents list --format json` now surfaces a `tasks` field so dashboards know what each agent is working on.
+Push new task payloads into a running deployment without redeploying:
+
+```bash
+agentswarm agents assign codex --tasks "specs/payment-flow/tasks.md#codex,docs/ADR-009.md"
+```
+
+The orchestrator persists the updated task list next to each process in `.agentswarm/state.json`, so `agentswarm agents list --format json` reports commands, PIDs, and task assignments alongside process health.
 
 ### Example task payload
 
@@ -176,9 +182,9 @@ VERSION                     # semantic-release updates this JSON payload
 
 1. **Install**: `./install.sh` (creates `venv/` and installs requirements)
 2. **Run lint/tests**: `pytest tests/backend`
-3. **Deploy to template**: The GitHub Actions workflow (.github/workflows/version-management.yml) uses semantic-release to bump `VERSION` and sends component-release events to the template repository for automatic synchronization via repository_dispatch.
+3. **Deploy to template**: The GitHub Actions workflow (.github/workflows/version-management.yml) uses semantic-release to bump `VERSION` and then syncs the minimal payload (`src/`, `bin/agentswarm`, `install.sh`, `requirements.txt`, `VERSION`) into the template repository.
 
-The deployment workflow excludes development directories such as `specs/`, `.github/`, `tests/`, `.vscode/`, ensuring the template only receives runtime assets via the component-sync system.
+The deployment script deliberately excludes development directories such as `specs/`, `.github/`, `tests/`, `.vscode/`, ensuring the template only receives runtime assets.
 
 ---
 ## Next steps

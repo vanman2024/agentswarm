@@ -36,6 +36,7 @@ from ..workflows.orchestrator import WorkflowManager, WorkflowOrchestrator
 from ..workflows.models import AgentWorkflowExecutor, WORKFLOW_REGISTRY
 from ..workflows.state import WorkflowStateStore
 from ..workflows.monitor import WorkflowMonitor
+from .commands import local_group, spec_group, task_group
 
 
 console = Console()
@@ -1027,6 +1028,7 @@ def list_agents(
                     "pid": proc.get("pid"),
                     "status": proc.get("status", "unknown"),
                     "command": proc.get("command"),
+                    "tasks": proc.get("tasks", []),
                 }
             )
 
@@ -1045,6 +1047,7 @@ def list_agents(
     table.add_column("PID", justify="right")
     table.add_column("Status", style="green")
     table.add_column("Command", overflow="fold")
+    table.add_column("Tasks", overflow="fold")
 
     if not agents_payload:
         console.print("No agents recorded for this deployment.", style="yellow")
@@ -1057,9 +1060,44 @@ def list_agents(
             str(record.get("pid", "-")),
             record.get("status", "unknown"),
             record.get("command", ""),
+            ", ".join(record.get("tasks", [])) or "-",
         )
 
     console.print(table)
+
+
+@agents_group.command("assign")
+@click.argument("agent_type")
+@click.option(
+    "--tasks",
+    "tasks_value",
+    required=True,
+    help="Comma-separated task payloads to hand off",
+)
+@click.option("--deployment", "deployment_id", help="Target deployment id")
+@click.pass_context
+def assign_tasks(
+    ctx: click.Context,
+    agent_type: str,
+    tasks_value: str,
+    deployment_id: Optional[str],
+) -> None:
+    """Assign or update task payload for a running agent."""
+
+    orchestrator = AgentOrchestrator(
+        project_root=ctx.obj["project"],
+        state_store=ctx.obj["state_store"],
+    )
+
+    tasks = [item.strip() for item in tasks_value.split(",") if item.strip()]
+    orchestrator.assign_tasks_to_agent(agent_type, tasks, deployment_id=deployment_id)
+    console.print(
+        Panel.fit(
+            f"Assigned {len(tasks)} task(s) to {agent_type}",
+            title="Agent tasks updated",
+            style="green",
+        )
+    )
 
 
 @cli.group()
@@ -1651,6 +1689,11 @@ def _collect_metrics(processes: list[dict[str, Any]]) -> tuple[str, str]:
     memory_display = f"{total_memory:.1f} MB" if total_memory else "0.0 MB"
     cpu_display = f"{total_cpu:.1f}%" if total_cpu else "0.0%"
     return memory_display, cpu_display
+
+
+cli.add_command(task_group)
+cli.add_command(spec_group)
+cli.add_command(local_group)
 
 
 if __name__ == "__main__":

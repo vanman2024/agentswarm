@@ -21,6 +21,7 @@ class AgentProcess:
     cwd: Optional[str] = None
     env: Optional[Dict[str, str]] = None
     start_time: float = field(default_factory=time.time)
+    tasks: List[str] = field(default_factory=list)
     handle: Optional[subprocess.Popen] = field(default=None, repr=False)
 
     def is_alive(self) -> bool:
@@ -59,3 +60,4 @@ class SwarmDeployment:
     config: Any  # SwarmConfig, but avoid circular imports
     deployment_id: str
     start_time: str
+    local_tasks: List[Dict[str, Any]] = field(default_factory=list)

@@ -50,7 +50,7 @@ def test_agents_list_contract(cli_runner, tmp_project_dir, populated_state_store
 
     payload = load_json(result.output)
     agent_record = payload["agents"][0]
-    assert set(agent_record.keys()) == {"agent_type", "instance_id", "pid", "status", "command"}
+    assert set(agent_record.keys()) == {"agent_type", "instance_id", "pid", "status", "command", "tasks"}
 
 
 @pytest.mark.contract

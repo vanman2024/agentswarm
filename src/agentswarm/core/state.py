@@ -96,6 +96,7 @@ class SwarmStateStore:
                 agent_type: [SwarmStateStore._serialize_process(proc) for proc in processes]
                 for agent_type, processes in deployment.agents.items()
             },
+            "local_tasks": getattr(deployment, "local_tasks", []),
         }
 
     @staticmethod
@@ -108,6 +109,7 @@ class SwarmStateStore:
             "status": getattr(process, "status", None),
             "cwd": getattr(process, "cwd", None),
             "start_time": getattr(process, "start_time", None),
+            "tasks": getattr(process, "tasks", None),
         }
         return {key: value for key, value in payload.items() if value is not None}
 

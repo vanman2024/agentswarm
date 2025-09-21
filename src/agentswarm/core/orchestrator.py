@@ -60,6 +60,7 @@ class AgentOrchestrator:
             config=config,
             deployment_id=deployment_id,
             start_time=datetime.now(UTC).isoformat(),
+            local_tasks=self._load_local_tasks(),
         )
 
         self.deployments[deployment_id] = deployment
@@ -119,6 +120,26 @@ class AgentOrchestrator:
     async def list_deployments(self) -> List[SwarmDeployment]:
         return list(self.deployments.values())
 
+    def assign_tasks_to_agent(
+        self,
+        agent_type: str,
+        tasks: List[str],
+        *,
+        deployment_id: Optional[str] = None,
+    ) -> None:
+        """Update task payload for a running agent and persist to state."""
+
+        target = self._resolve_deployment_id(deployment_id)
+        deployment = self.deployments[target]
+        agent_config = deployment.config.agents.setdefault(agent_type, {})
+        agent_config["tasks"] = tasks
+
+        for process in deployment.agents.get(agent_type, []):
+            process.tasks = list(tasks)
+
+        deployment.local_tasks = self._load_local_tasks()
+        self._persist_state(target)
+
     # ------------------------------------------------------------------
     # Monitoring
     # ------------------------------------------------------------------
@@ -162,6 +183,7 @@ class AgentOrchestrator:
                         status=entry.get("status", "unknown"),
                         cwd=entry.get("cwd"),
                         start_time=entry.get("start_time", 0.0),
+                        tasks=entry.get("tasks", []),
                     )
                     processes.append(process)
 
@@ -178,6 +200,7 @@ class AgentOrchestrator:
                 config=config,
                 deployment_id=deployment_id,
                 start_time=payload.get("start_time", ""),
+                local_tasks=payload.get("local_tasks", []),
             )
             self.deployments[deployment_id] = deployment
 
@@ -213,7 +236,8 @@ class AgentOrchestrator:
         instance_id: int,
         config: AgentConfig,
     ) -> AgentProcess:
-        command = self._build_agent_command(agent_type, instance_id, config)
+        tasks = self._resolve_agent_tasks(config)
+        command = self._build_agent_command(agent_type, instance_id, config, tasks)
         process = subprocess.Popen(
             command,
             shell=True,
@@ -229,6 +253,7 @@ class AgentOrchestrator:
             instance_id=instance_id,
             command=command,
             cwd=str(self.project_root),
+            tasks=tasks,
             handle=process,
         )
 
@@ -260,15 +285,13 @@ class AgentOrchestrator:
         process.status = "terminated"
 
     def _build_agent_command(
-        self, agent_type: str, instance_id: int, config: AgentConfig
+        self,
+        agent_type: str,
+        instance_id: int,
+        config: AgentConfig,
+        tasks: List[str],
     ) -> str:
         template = config.get("command_template")
-        raw_tasks = config.get("tasks", [])
-
-        if isinstance(raw_tasks, str):
-            tasks = [raw_tasks]
-        else:
-            tasks = list(raw_tasks)
 
         if template:
             task_payload = tasks[0] if len(tasks) == 1 else " && ".join(tasks)
@@ -299,6 +322,13 @@ class AgentOrchestrator:
         }
 
         return commands.get(agent_type, f'echo "Unknown agent type: {agent_type}"')
+
+    @staticmethod
+    def _resolve_agent_tasks(config: AgentConfig) -> List[str]:
+        raw_tasks = config.get("tasks", [])
+        if isinstance(raw_tasks, str):
+            return [raw_tasks]
+        return [str(entry) for entry in raw_tasks if entry]
 
     def _persist_state(self, deployment_id: str) -> None:
         if deployment_id in self.deployments:
@@ -332,3 +362,18 @@ class AgentOrchestrator:
         timestamp = datetime.now(UTC).strftime("%Y%m%d%H%M%S")
         suffix = len(self.deployments)
         return f"swarm-{timestamp}-{suffix}"
+
+    def _load_local_tasks(self) -> List[Dict[str, Any]]:
+        state_path = self.project_root / ".local-state" / "active-work.json"
+        if not state_path.exists():
+            return []
+        try:
+            payload = json.loads(state_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            return []
+        tasks = payload.get("tasks", {})
+        if isinstance(tasks, dict):
+            return list(tasks.values())
+        if isinstance(tasks, list):
+            return tasks
+        return []
