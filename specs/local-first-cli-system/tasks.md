@@ -77,17 +77,7 @@
 
 ## Implementation Assets Available
 
-### JavaScript Reference Implementation
-```
-specs/local-first-cli-system/implementation/
-├── task-parser.js          # Complete task parsing system
-├── task-utils.js           # Task lifecycle management
-├── task-cli.js             # Full CLI with 30+ commands
-├── spec-folder-manager.js  # Feature spec creation
-└── .local-state/           # Working state system
-```
-
-### Documentation & Integration Guides
+### Reference Materials
 ```
 specs/local-first-cli-system/
 ├── spec.md                               # Feature specification
@@ -98,15 +88,13 @@ specs/local-first-cli-system/
 └── FINAL-HANDOFF-SUMMARY.md            # Project summary
 ```
 
-### Testing Commands (JavaScript)
+### Testing Commands (Python)
 ```bash
 # Test current implementation
-cd specs/local-first-cli-system/implementation/
-node task-cli.js help
-node task-cli.js create "Test task" --type=bug
-node task-cli.js list --local
-node task-cli.js start local-001
-node task-cli.js create-feature "test-feature" --api
+agentswarm task create "Test task" --agent codex --type bug
+agentswarm task list --format json
+agentswarm task start local-001 --no-git
+agentswarm spec create-feature "test-feature" --requires-api
 ```
 
 ## Success Criteria

@@ -100,13 +100,13 @@ agentswarm local validate
 agentswarm local status
 ```
 
-### Current CLI Testing (JavaScript)
+### Current CLI Testing (Python)
 ```bash
 # Available now for testing
-node implementation/task-cli.js create "Fix auth bug" --type=bug
-node implementation/task-cli.js start local-001
-node implementation/task-cli.js complete local-001
-node implementation/task-cli.js create-feature "dashboard" --api --frontend
+agentswarm task create "Fix auth bug" --agent codex --type bug
+agentswarm task start local-001 --no-git
+agentswarm task complete local-001 --skip-qa
+agentswarm spec create-feature "dashboard" --requires-frontend --requires-api
 ```
 
 ## Integration Points

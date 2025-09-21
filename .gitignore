@@ -1,0 +1,3 @@
+
+# Ignore legacy JS implementation assets
+specs/local-first-cli-system/implementation/
