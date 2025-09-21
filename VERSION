@@ -1,6 +1,6 @@
 {
-  "version": "v1.10.2",
-  "commit": "a7a7d29224c314d80be74147f97012af32fe3788",
-  "build_date": "2025-09-21T02:19:54.477Z",
+  "version": "v1.11.0",
+  "commit": "badce611762a0c02e4891010465a6a7394cdacc6",
+  "build_date": "2025-09-21T02:27:07.498Z",
   "build_type": "production"
 }
