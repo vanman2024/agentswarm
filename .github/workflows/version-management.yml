@@ -112,6 +112,20 @@ jobs:
           --exclude '*.pyc' \
           --exclude '*.pyo' \
           --exclude 'deploy-to-template.sh' \
+          --exclude 'node_modules/' \
+          --exclude 'config/' \
+          --exclude 'devops/' \
+          --exclude 'docs/' \
+          --exclude 'specs/' \
+          --exclude '.releaserc.json' \
+          --exclude 'AGENTS.md' \
+          --exclude 'pytest.ini' \
+          --exclude 'package.json' \
+          --exclude 'package-lock.json' \
+          --exclude '.npmrc' \
+          --exclude '.env*' \
+          --exclude 'venv/' \
+          --exclude '.venv/' \
           $GITHUB_WORKSPACE/ agentswarm/
         
         # Copy template version of pyproject.toml if it exists
